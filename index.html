@@ -481,12 +481,14 @@
 
 <script>
 const brokerHost = "broker.hivemq.com";
-const brokerPort = 8044; 
+const brokerPort = 8044; // Secure WebSockets port
 const topicData = "rehab/emg/data";
 const topicCmd  = "rehab/emg/cmd";
 
 const clientId = "Web_Rehab_Exp_" + Math.floor(Math.random() * 10000);
-const mqttClient = new Paho.MQTT.Client(brokerHost, brokerPort, clientId);
+
+// EXPLICIT WSS PROTOCOL CONSTRUCTOR OVERRIDE
+const mqttClient = new Paho.MQTT.Client("wss://" + brokerHost + ":" + brokerPort + "/mqtt", clientId);
 
 // Setup Chart.js with modern styling
 const ctx = document.getElementById('emgChart').getContext('2d');
@@ -560,12 +562,11 @@ mqttClient.onConnectionLost = () => {
 mqttClient.onMessageArrived = (message) => {
   const payload = JSON.parse(message.payloadString);
   
-  // ADJUSTMENT UPGRADE: Dynamic bounds adjustment for both signal peaks and locked thresholds
+  // Dynamic bounds adjustment for both signal peaks and locked thresholds
   const currentMaxTarget = Math.max(payload.emg, payload.threshold);
   if (currentMaxTarget > emgChart.options.scales.y.max - 2000) {
     emgChart.options.scales.y.max = Math.ceil(currentMaxTarget * 1.3);
   } else if (currentMaxTarget < 4000 && emgChart.options.scales.y.max > 15000) {
-    // Gracefully scale back down to a clean baseline resolution if signals stay low
     emgChart.options.scales.y.max = 15000;
   }
 
@@ -608,7 +609,8 @@ mqttClient.connect({
     document.getElementById("calib-btn").disabled = false;
     mqttClient.subscribe(topicData);
   },
-  useSSL: false
+  useSSL: true, // Secure socket protocol implementation active
+  timeout: 5
 });
 
 function publishCommand(cmdType) {
